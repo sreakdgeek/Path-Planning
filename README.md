@@ -23,15 +23,10 @@ The highway's waypoints loop around so the frenet s value, distance along the ro
 #### Main car's localization Data (No Noise)
 
 ["x"] The car's x position in map coordinates
-
 ["y"] The car's y position in map coordinates
-
 ["s"] The car's s position in frenet coordinates
-
 ["d"] The car's d position in frenet coordinates
-
 ["yaw"] The car's yaw angle in the map
-
 ["speed"] The car's speed in MPH
 
 #### Previous path data given to the Planner
@@ -40,13 +35,11 @@ The highway's waypoints loop around so the frenet s value, distance along the ro
 the path has processed since last time. 
 
 ["previous_path_x"] The previous list of x points previously given to the simulator
-
 ["previous_path_y"] The previous list of y points previously given to the simulator
 
 #### Previous path's end s and d values 
 
 ["end_path_s"] The previous list's last point's frenet s value
-
 ["end_path_d"] The previous list's last point's frenet d value
 
 #### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
@@ -64,7 +57,7 @@ the path has processed since last time.
 1. Fetch all cars' sensor fusion data to detect collision possibility. Collision is possible if the gap between the leading car and ego car is less than certain threshold, which chosen to be 50 meters.
    We check the Frenet's s-coordinate to determine ift he car is in front in the lane and if so if it is within 30 meters distance.
 
-		```cpp
+```cpp
 		for (int i = 0; i < sensor_fusion.size(); i++)
 		{
 			// This Car's current lane
