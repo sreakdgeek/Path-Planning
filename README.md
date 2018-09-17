@@ -125,8 +125,8 @@ the path has processed since last time.
 
 3. If the car is too close and if it is safe enough to switch to left or right lane, we make the switch else After fetching the we slow down. This is done in below piece of code:
 
-		```cpp
-		// If too close - Change lane to left, right or slow down
+```cpp
+ 		// If too close - Change lane to left, right or slow down
 		if (too_close_in_lane)
 		{
 			cout << "Detected car is too close in lane. Need to switch left or right" << endl;
@@ -153,6 +153,110 @@ the path has processed since last time.
 			cout << "ref_vel = " << ref_vel << endl;
 
 		}
-		```
+```
 
-4. 
+4. Way Point generation: Simulator provides us previous path traversed by the car. For the very first iteration, there is no previous path, in such case we just use the car's current location as 
+   starting reference point.  For all the remaining cases, where we do have previous path, we use last two coordinates of the previous path and another 3 points which are 30, 60 and 90 meters from the 
+   car's current position as Anchor points to generate the path.
+
+```cpp
+		// If previous size is nearly empty, will use car's current lcoation as starting reference
+		if (prev_size < 2)
+		{
+			double prev_car_x = car_x - cos(car_yaw);
+			double prev_car_y = car_y - sin(car_yaw);
+
+			pts_x.push_back(prev_car_x);
+			pts_x.push_back(car_x);
+
+			pts_y.push_back(prev_car_y);
+			pts_y.push_back(car_y);
+		}
+		else
+		{
+			ref_x = previous_path_x[prev_size-1];
+			ref_y = previous_path_y[prev_size-1];
+
+			double ref_x_prev = previous_path_x[prev_size-2];
+			double ref_y_prev = previous_path_y[prev_size-2];
+
+			ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+
+			pts_x.push_back(ref_x_prev);
+			pts_x.push_back(ref_x);
+
+			pts_y.push_back(ref_y_prev);
+			pts_y.push_back(ref_y);
+
+		}
+
+		// In frenet add 30m spaced points ahead of the starting reference point
+		vector<double> next_wp0 = getXY(car_s + 30, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+		vector<double> next_wp1 = getXY(car_s + 60, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+		vector<double> next_wp2 = getXY(car_s + 90, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+		pts_x.push_back(next_wp0[0]);
+		pts_x.push_back(next_wp1[0]);
+		pts_x.push_back(next_wp2[0]);
+
+		pts_y.push_back(next_wp0[1]);
+		pts_y.push_back(next_wp1[1]);
+```
+
+5. To generate a smooth evenly spaced trajectory, we use spline (http://kluge.in-chemnitz.de/opensource/spline/). Using 5 anchor points we generated in the previous step, we create
+   spline that fits polynomial to these anchor points.
+
+6. We generate 50 points that are evenly spaced. These 50 points are spaced based on the reference velocity. If the car in front is too close, we need to have the points tightly spaced
+   and if we have space in front, points are going to be much more sparsely spaced thus providing acceleration to the vehicle. Below piece of the code achieves this:
+
+```cpp
+		// Start with all the previous path points from the last instance
+		for (int i = 0; i < previous_path_x.size(); i++)
+		{
+			next_x_vals.push_back(previous_path_x[i]);
+			next_y_vals.push_back(previous_path_y[i]);
+		}
+
+
+		// Breakup spline points such that we can traverse at reference velocity
+		double target_x = 30.0;
+		double target_y = s(target_x);
+		double target_dist = sqrt(target_x * target_x + target_y * target_y);
+
+		double x_add_on = 0;
+
+		for (int i = 0; i <= 50 - previous_path_x.size(); i++)
+		{
+			double N = (target_dist / (0.02 * ref_vel / 2.24));
+
+			double x_point = x_add_on + (target_x) / N;
+			double y_point = s(x_point);
+
+			x_add_on = x_point;
+
+			double x_ref = x_point;
+			double y_ref = y_point;
+
+			// Rotate back from car coordinates to map coordinates
+			x_point = (x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw));
+			y_point = (x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw));
+
+			x_point += ref_x;
+			y_point += ref_y;
+
+			next_x_vals.push_back(x_point);
+			next_y_vals.push_back(y_point);
+```
+
+
+## Results
+
+Below youtube shows the traversal of the car around the track. Car maintains <= 50 mph speed limit without any jerk or undesirable acceleartion, without creating any incident and 
+travels more than 10 miles in about 14 minutes.
+
+https://www.youtube.com/watch?v=HcM2HTf1VT4
+
+There is further scope for improvement of this path planner. Car does not strategically slow down if there is a possibility to avoid the car in right lane and get to the right most lane
+which may be completely free. This algorithm uses a simple finite state machine to handle the lane switches, however a custom-defined cost-function that can handle lane switches more efficiently 
+or a reward function based Reinforcement Learning algorithm can be developed.
+
