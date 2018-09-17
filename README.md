@@ -197,7 +197,8 @@ the path has processed since last time.
 ```
 
 5. To generate a smooth evenly spaced trajectory, we use spline (http://kluge.in-chemnitz.de/opensource/spline/). Using 5 anchor points we generated in the previous step, we create
-   spline that fits polynomial to these anchor points.
+   spline that fits polynomial to these anchor points. Spline generation is done in car local coordinates by doing rotation and translation to car's reference x, y and yaw angle. 
+   Points generated using spline, are later transformed back to map coordinates.
 
 6. We generate 50 points that are evenly spaced. These 50 points are spaced based on the reference velocity. If the car in front is too close, we need to have the points tightly spaced
    and if we have space in front, points are going to be much more sparsely spaced thus providing acceleration to the vehicle. Below piece of the code achieves this:
