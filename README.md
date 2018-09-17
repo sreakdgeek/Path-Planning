@@ -60,3 +60,99 @@ the path has processed since last time.
 2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed.
 
 ## Algorithm
+
+1. Fetch all cars' sensor fusion data to detect collision possibility. Collision is possible if the gap between the leading car and ego car is less than certain threshold, which chosen to be 50 meters.
+   We check the Frenet's s-coordinate to determine ift he car is in front in the lane and if so if it is within 30 meters distance.
+
+		```cpp
+		for (int i = 0; i < sensor_fusion.size(); i++)
+		{
+			// This Car's current lane
+			float d = sensor_fusion[i][6];
+			// 0-3 - lane 0, 4-7, lane 1, 8-11, lane 2
+			int check_car_lane = (int) d / 4;
+
+			// Check if car is in ego car's reference lane
+			double vx = sensor_fusion[i][3];
+			double vy = sensor_fusion[i][4];
+			double check_speed = sqrt(vx * vx + vy * vy);
+			double check_car_s = sensor_fusion[i][5];
+
+
+			check_car_s += ((double)prev_size * 0.02 * check_speed);
+
+			// Check if collision possible. Logic: if car infront is less than 30 m, handle it
+			if ((check_car_s > car_s) && ((check_car_s - car_s) < 30) && (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2)))
+			{
+				cout << "Detected car infront" << endl;
+				too_close_in_lane = true;
+			}
+
+			if (abs(check_car_s - car_s) <= 30)
+			{
+				if (lane == 0)
+				{
+					safe_left = false;
+
+					if (check_car_lane == 1 /*|| check_car_lane == 2*/)
+						safe_right = false;
+
+				}
+
+				if (lane == 1)
+				{
+					if (check_car_lane == 0)
+						safe_left = false;
+					else if (check_car_lane == 2)
+						safe_right = false;
+				}
+
+				if (lane == 2)
+				{
+					safe_right = false;
+
+					if (/*check_car_lane == 0 || */check_car_lane == 1)
+						safe_left = false;
+				}
+
+			}
+		}
+		```
+
+
+2. While detecting if the car is too close in front, we also detect if it is safe to switch lane to the left or right. It is safe to switch lane if there is no
+   car in the left or right lane within 30 meters of distance (both ahead and behind car's current position).
+
+3. If the car is too close and if it is safe enough to switch to left or right lane, we make the switch else After fetching the we slow down. This is done in below piece of code:
+
+		```cpp
+		// If too close - Change lane to left, right or slow down
+		if (too_close_in_lane)
+		{
+			cout << "Detected car is too close in lane. Need to switch left or right" << endl;
+
+			if (safe_left) // If it safe to switch left lane, then switch
+			{
+				cout << "Switching to left lane." << endl;
+				lane--;
+			}
+			else if(safe_right) // If it is safe to switch right lane then switch
+			{
+				cout << "Switching to right lane." << endl;
+				lane++;
+			}
+			else // Not safe to switch either left or right, so only option is to slow down
+			{
+				cout << "Slowing down." << endl;
+				ref_vel -= 0.224;
+			}
+		} 
+		else if (ref_vel < 49.5)
+		{
+			ref_vel += 0.224;
+			cout << "ref_vel = " << ref_vel << endl;
+
+		}
+		```
+
+4. 
