@@ -110,7 +110,7 @@ the path has processed since last time.
 
 			}
 		}
-		```
+```
 
 
 2. While detecting if the car is too close in front, we also detect if it is safe to switch lane to the left or right. It is safe to switch lane if there is no
